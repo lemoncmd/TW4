@@ -1,10 +1,12 @@
+`include "types.svh"
+
 module top;
   logic clock = 0;
   logic reset = 0;
   logic [3:0] in = 0;
   logic [3:0] out;
   logic [7:0] data;
-  logic [5:0] addr;
+  addr_t addr;
   always_ff #5 begin
     clock <= ~clock;
   end
