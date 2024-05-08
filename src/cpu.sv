@@ -23,6 +23,7 @@ module cpu (
   always_ff @(posedge clock) begin
     logic opcode = data.instruction.opcode;
     logic imm = data.instruction.imm;
+    addr.virt_addr.addr <= addr.virt_addr.addr + 1;
     unique case (opcode)
       ADD_A_IMM: {c, a} <= {1'b0, a} + {1'b0, imm};
       MOV_A_B: a <= b;
