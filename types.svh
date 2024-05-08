@@ -11,8 +11,30 @@ typedef union {
   logic [5:0] phys_addr;
 } addr_t;
 
+typedef enum logic [3:0] {
+  ADD_A_IMM,
+  MOV_A_B,
+  IN_A,
+  MOV_A_IMM,
+
+  MOV_B_A,
+  ADD_B_IMM,
+  IN_B,
+  MOV_B_IMM,
+
+  NOP0,
+  OUT_B,
+  NOP1,
+  OUT_IMM,
+
+  NOP2,
+  NOP3,
+  JMP,
+  JNC
+} opcode_t;
+
 typedef struct {
-  logic [3:0] opcode;
+  opcode_t opcode;
   logic [3:0] imm;
 } instruction_t;
 
