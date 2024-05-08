@@ -5,7 +5,7 @@ module top;
   logic reset = 0;
   logic [3:0] in = 0;
   logic [3:0] out;
-  logic [7:0] data;
+  data_t data;
   addr_t addr;
   always_ff #5 begin
     clock <= ~clock;
@@ -25,4 +25,7 @@ module top;
       .data(data)
   );
 
+  initial begin
+    $finish;
+  end
 endmodule
