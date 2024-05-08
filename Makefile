@@ -1,7 +1,7 @@
 all: obj_dir/Vtop
 
-obj_dir/Vtop: *.sv *.svh
-	verilator --binary --trace --trace-params --trace-structs --trace-underscore top.sv
+obj_dir/Vtop: src/*.sv src/*.svh
+	verilator --binary --trace --trace-params --trace-structs --trace-underscore -Isrc src/top.sv
 
 run: all
 	obj_dir/Vtop
