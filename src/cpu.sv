@@ -11,18 +11,9 @@ module cpu (
   logic [3:0] a, b;
   logic c;
 
-  always_ff @(posedge reset) begin
-    a <= 0;
-    b <= 0;
-    c <= 0;
-    addr.virt_addr.mode <= 0;
-    addr.virt_addr.addr <= 0;
-    out <= 0;
-  end
-
   always_ff @(posedge clock) begin
-    logic opcode = data.instruction.opcode;
-    logic imm = data.instruction.imm;
+    logic [3:0] opcode = data.instruction.opcode;
+    logic [3:0] imm = data.instruction.imm;
     addr.virt_addr.addr <= addr.virt_addr.addr + 1;
     unique case (opcode)
       ADD_A_IMM: {c, a} <= {1'b0, a} + {1'b0, imm};
@@ -47,6 +38,15 @@ module cpu (
 
       default: ;
     endcase
+
+    if (reset) begin
+      a <= 0;
+      b <= 0;
+      c <= 0;
+      addr.virt_addr.addr <= 0;
+      out <= 0;
+    end
+
   end
 endmodule
 
