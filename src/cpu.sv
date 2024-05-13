@@ -8,41 +8,40 @@ module cpu (
     input logic [3:0] in,
     output logic [3:0] out
 );
-  logic [3:0] a, b;
-  logic c;
+  register_t regs;
 
   always_ff @(posedge clock) begin
     logic [3:0] opcode = data.instruction.opcode;
     logic [3:0] imm = data.instruction.imm;
     addr.virt_addr.addr <= addr.virt_addr.addr + 1;
     unique case (opcode)
-      ADD_A_IMM: {c, a} <= {1'b0, a} + {1'b0, imm};
-      MOV_A_B: a <= b;
-      IN_A: a <= in;
-      MOV_A_IMM: a <= imm;
+      ADD_A_IMM: {regs.c, regs.a} <= {1'b0, regs.a} + {1'b0, imm};
+      MOV_A_B: regs.a <= regs.b;
+      IN_A: regs.a <= in;
+      MOV_A_IMM: regs.a <= imm;
 
-      MOV_B_A: b <= a;
-      ADD_B_IMM: {c, b} <= {1'b0, b} + {1'b0, imm};
-      IN_B: b <= in;
-      MOV_B_IMM: b <= imm;
+      MOV_B_A: regs.b <= regs.a;
+      ADD_B_IMM: {regs.c, regs.b} <= {1'b0, regs.b} + {1'b0, imm};
+      IN_B: regs.b <= in;
+      MOV_B_IMM: regs.b <= imm;
 
       // NOP0: ;
-      OUT_B:   out <= b;
+      OUT_B:   out <= regs.b;
       // NOP1: ;
       OUT_IMM: out <= imm;
 
       // NOP2: ;
       // NOP3: ;
       JMP: addr.virt_addr.addr <= imm;
-      JNC: if (c) addr.virt_addr.addr <= imm;
+      JNC: if (regs.c) addr.virt_addr.addr <= imm;
 
       default: ;
     endcase
 
     if (reset) begin
-      a <= 0;
-      b <= 0;
-      c <= 0;
+      regs.a <= 0;
+      regs.b <= 0;
+      regs.c <= 0;
       addr.virt_addr.addr <= 0;
       out <= 0;
     end

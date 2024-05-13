@@ -40,4 +40,10 @@ typedef union {
   logic [7:0]   raw_data;
 } data_t;
 
+typedef struct {
+  logic [3:0] a;
+  logic [3:0] b;
+  logic c;
+} register_t;
+
 `endif  // TYPES_SVH
