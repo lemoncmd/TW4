@@ -38,7 +38,7 @@ module cpu (
       default: ;
     endcase
 
-    if (reset) begin
+    if (~reset) begin
       regs.a <= 0;
       regs.b <= 0;
       regs.c <= 0;

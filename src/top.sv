@@ -26,8 +26,7 @@ module top;
   );
 
   initial begin
-    reset = 1;
-    #20 reset = 0;
+    #20 reset = 1;
     #100 $finish;
   end
 
