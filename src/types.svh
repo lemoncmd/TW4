@@ -1,7 +1,7 @@
 `ifndef TYPES_SVH
 `define TYPES_SVH
 
-typedef struct {logic [3:0] addr;} virt_addr_t;
+typedef struct packed {logic [3:0] addr;} virt_addr_t;
 
 typedef union {
   virt_addr_t virt_addr;
@@ -26,11 +26,11 @@ typedef enum logic [3:0] {
 
   NOP2,
   NOP3,
-  JMP,
-  JNC
+  JNC,
+  JMP
 } opcode_t;
 
-typedef struct {
+typedef struct packed {
   opcode_t opcode;
   logic [3:0] imm;
 } instruction_t;

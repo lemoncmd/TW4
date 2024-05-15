@@ -10,8 +10,13 @@ module cpu (
 );
   register_t user_regs;
 
-  logic [3:0] opcode = data.instruction.opcode;
-  logic [3:0] imm = data.instruction.imm;
+  logic [3:0] opcode;
+  logic [3:0] imm;
+
+  always_comb begin
+    opcode = data.instruction.opcode;
+    imm = data.instruction.imm;
+  end
 
   function static void execute(input logic [3:0] in, ref register_t regs);
     addr.virt_addr.addr <= addr.virt_addr.addr + 1;
@@ -33,8 +38,8 @@ module cpu (
 
       // NOP2: ;
       // NOP3: ;
+      JNC: if (!regs.c) addr.virt_addr.addr <= imm;
       JMP: addr.virt_addr.addr <= imm;
-      JNC: if (regs.c) addr.virt_addr.addr <= imm;
 
       default: ;
     endcase

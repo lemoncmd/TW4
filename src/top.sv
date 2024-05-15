@@ -27,10 +27,10 @@ module top;
 
   initial begin
     #20 reset = 1;
-    #100 $finish;
+    #10000 $finish;
   end
 
-  always_ff @out begin
+  always_ff @(out) begin
     $display("LED: %d", out);
   end
 endmodule
