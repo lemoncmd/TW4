@@ -79,6 +79,13 @@ module cpu (
     endcase
   end
 
+  virt_addr_t exception_addr;
+
+  always_comb begin
+    exception_addr.mode = 2'b10;
+    exception_addr.addr = 0;
+  end
+
   always_ff @(posedge clock) begin
     if (~reset) begin
       // リセット
@@ -90,6 +97,8 @@ module cpu (
       priv_regs.c <= 0;
       addr.phys_addr <= 0;
       out <= 0;
+    end else if (has_exception) begin
+      addr.virt_addr <= exception_addr;
     end else begin
       // 次の状態をレジスタやCPUからの出力に書き出す
       if (do_swap) begin
