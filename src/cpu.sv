@@ -12,6 +12,7 @@ module cpu (
 
   logic is_priv;
 
+  // 特権モードかどうか
   always_comb begin
     is_priv = addr.virt_addr.mode != 0;
   end
@@ -81,6 +82,7 @@ module cpu (
 
   virt_addr_t exception_addr;
 
+  // 例外ハンドラのアドレス
   always_comb begin
     exception_addr.mode = 2'b10;
     exception_addr.addr = 0;
@@ -100,6 +102,7 @@ module cpu (
       addr.phys_addr <= 0;
       out <= 0;
     end else if (has_exception) begin
+      // 例外時の処理
       if (cur.addr.mode == 2'b10) is_halted <= 1;
       else addr.virt_addr <= exception_addr;
     end else if (!is_halted) begin
