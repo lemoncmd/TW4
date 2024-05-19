@@ -46,4 +46,10 @@ typedef struct {
   logic c;
 } register_t;
 
+typedef struct {
+  register_t  regs;
+  logic [3:0] out;
+  virt_addr_t addr;
+} state_t;
+
 `endif  // TYPES_SVH
