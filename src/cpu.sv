@@ -92,7 +92,7 @@ module cpu (
       end else if (is_priv) priv_regs <= next.regs;
       else begin
         user_regs <= next.regs;
-        saved_ip  <= cur.addr.addr;
+        saved_ip  <= cur.addr.addr + 1;
       end
       out <= next.out;
       addr.virt_addr <= next.addr;
