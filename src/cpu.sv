@@ -17,6 +17,10 @@ module cpu (
 
   logic is_priv;
 
+  always_comb begin
+    is_priv = addr.virt_addr.mode != 0;
+  end
+
   // オペコードとオペランドをロード
   always_comb begin
     opcode = data.instruction.opcode;
@@ -33,6 +37,7 @@ module cpu (
 
   // オペコードから次のクロックの状態を演算
   always_comb begin
+    next.addr.mode = cur.addr.mode;
     next.addr.addr = cur.addr.addr + 1;
     do_swap = 0;
     unique case (opcode)
@@ -69,7 +74,7 @@ module cpu (
       priv_regs.a <= 0;
       priv_regs.b <= 0;
       priv_regs.c <= 0;
-      addr.virt_addr.addr <= 0;
+      addr.phys_addr <= 0;
       out <= 0;
     end else begin
       // 次の状態をレジスタやCPUからの出力に書き出す
