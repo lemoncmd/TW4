@@ -86,6 +86,8 @@ module cpu (
     exception_addr.addr = 0;
   end
 
+  logic is_halted;
+
   always_ff @(posedge clock) begin
     if (~reset) begin
       // リセット
@@ -98,8 +100,9 @@ module cpu (
       addr.phys_addr <= 0;
       out <= 0;
     end else if (has_exception) begin
-      addr.virt_addr <= exception_addr;
-    end else begin
+      if (cur.addr.mode == 2'b10) is_halted <= 1;
+      else addr.virt_addr <= exception_addr;
+    end else if (!is_halted) begin
       // 次の状態をレジスタやCPUからの出力に書き出す
       if (do_swap) begin
         priv_regs.a <= user_regs.a;
