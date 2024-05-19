@@ -29,9 +29,12 @@ module cpu (
     cur.addr = addr.virt_addr;
   end
 
+  logic do_swap;
+
   // オペコードから次のクロックの状態を演算
   always_comb begin
     next.addr.addr = cur.addr.addr + 1;
+    do_swap = 0;
     unique case (opcode)
       ADD_A_IMM: {next.regs.c, next.regs.a} = {1'b0, cur.regs.a} + {1'b0, imm};
       MOV_A_B: next.regs.a = cur.regs.b;
@@ -48,10 +51,10 @@ module cpu (
       // NOP1: ;
       OUT_IMM: next.out = imm;
 
-      // NOP2: ;
+      SWAP: if (is_priv) do_swap = 1;
       // NOP3: ;
-      JNC: if (!cur.regs.c) next.addr.addr = imm;
-      JMP: next.addr.addr = imm;
+      JNC:  if (!cur.regs.c) next.addr.addr = imm;
+      JMP:  next.addr.addr = imm;
 
       default: ;
     endcase
@@ -70,7 +73,10 @@ module cpu (
       out <= 0;
     end else begin
       // 次の状態をレジスタやCPUからの出力に書き出す
-      if (is_priv) priv_regs <= next.regs;
+      if (do_swap) begin
+        priv_regs.a <= user_regs.a;
+        user_regs.a <= priv_regs.a;
+      end else if (is_priv) priv_regs <= next.regs;
       else user_regs <= next.regs;
       out <= next.out;
       addr.virt_addr <= next.addr;

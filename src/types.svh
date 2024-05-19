@@ -24,7 +24,7 @@ typedef enum logic [3:0] {
   NOP1,
   OUT_IMM,
 
-  NOP2,
+  SWAP,
   NOP3,
   JNC,
   JMP
