@@ -13,18 +13,21 @@ module cpu (
   logic [3:0] opcode;
   logic [3:0] imm;
 
+  state_t cur, next;
+
+  // オペコードとオペランドをロード
   always_comb begin
     opcode = data.instruction.opcode;
     imm = data.instruction.imm;
   end
 
-  state_t cur, next;
-
+  // 現在の状態をバインド
   always_comb begin
     cur.regs = regs;
     cur.addr = addr.virt_addr;
   end
 
+  // オペコードから次のクロックの状態を演算
   always_comb begin
     next.addr.addr = cur.addr.addr + 1;
     unique case (opcode)
@@ -52,14 +55,16 @@ module cpu (
     endcase
   end
 
-  always_ff @(posedge clock, negedge reset) begin
+  always_ff @(posedge clock) begin
     if (~reset) begin
+      // リセット
       regs.a <= 0;
       regs.b <= 0;
       regs.c <= 0;
       addr.virt_addr.addr <= 0;
       out <= 0;
     end else begin
+      // 次の状態をレジスタやCPUからの出力に書き出す
       regs <= next.regs;
       out <= next.out;
       addr.virt_addr <= next.addr;

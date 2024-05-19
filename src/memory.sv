@@ -4,7 +4,6 @@ module memory (
     input  addr_t addr,
     output data_t data
 );
-
   logic [7:0] mem[16] = {
     8'b1011_0111,
     8'b0000_0001,
@@ -23,6 +22,8 @@ module memory (
     8'b1011_1000,
     8'b1111_1111
   };
+
+  // メモリの物理アドレスをロード
   always_comb begin
     data.raw_data = mem[addr.phys_addr];
   end
