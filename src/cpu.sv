@@ -34,6 +34,7 @@ module cpu (
   end
 
   logic do_swap;
+  logic [3:0] saved_ip;
 
   // オペコードから次のクロックの状態を演算
   always_comb begin
@@ -57,8 +58,11 @@ module cpu (
       OUT_IMM: next.out = imm;
 
       SWAP: if (is_priv) do_swap = 1;
-      SWI:
-      if (!is_priv) begin
+      SWI_OR_IRET:
+      if (is_priv) begin
+        next.addr.mode = 2'b00;
+        next.addr.addr = saved_ip;
+      end else begin
         next.addr.mode = 2'b01;
         next.addr.addr = 0;
       end
@@ -86,7 +90,10 @@ module cpu (
         priv_regs.a <= user_regs.a;
         user_regs.a <= priv_regs.a;
       end else if (is_priv) priv_regs <= next.regs;
-      else user_regs <= next.regs;
+      else begin
+        user_regs <= next.regs;
+        saved_ip  <= cur.addr.addr;
+      end
       out <= next.out;
       addr.virt_addr <= next.addr;
     end
