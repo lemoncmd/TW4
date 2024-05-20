@@ -26,7 +26,10 @@ module top;
       .addr(addr),
       .data(data),
       .in(in),
-      .out(out)
+      .out(out),
+      .irq(irq_in),
+      .ie(ie),
+      .ack(ack)
   );
 
   memory memory (
