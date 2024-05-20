@@ -6,7 +6,10 @@ module cpu (
     output addr_t addr,
     input data_t data,
     input logic [3:0] in,
-    output logic [3:0] out
+    output logic [3:0] out,
+    input logic irq,
+    output logic [3:0] ie,
+    output logic ack
 );
   register_t user_regs, priv_regs;
 
@@ -45,9 +48,9 @@ module cpu (
     do_swap = 0;
     has_exception |= imm != 0
       && opcode !=? 4'b??11
+      && opcode !=? 4'b1?1?
       && opcode != ADD_A_IMM
-      && opcode != ADD_B_IMM
-      && opcode != JNC;
+      && opcode != ADD_B_IMM;
     unique case (opcode)
       ADD_A_IMM: {next.regs.c, next.regs.a} = {1'b0, cur.regs.a} + {1'b0, imm};
       MOV_A_B: next.regs.a = cur.regs.b;
@@ -60,8 +63,8 @@ module cpu (
       MOV_B_IMM: next.regs.b = imm;
 
       // NOP0: ;
-      OUT_B:   next.out = cur.regs.b;
-      // NOP1: ;
+      OUT_B: next.out = cur.regs.b;
+      IMSK: next.imsk = imm;
       OUT_IMM: next.out = imm;
 
       SWAP: if (is_priv) do_swap = 1;
@@ -80,17 +83,20 @@ module cpu (
     endcase
   end
 
-  virt_addr_t exception_addr;
+  virt_addr_t exception_addr, irq_addr;
 
   // 例外ハンドラのアドレス
   always_comb begin
     exception_addr.mode = 2'b10;
     exception_addr.addr = 0;
+    irq_addr.mode = 2'b11;
+    irq_addr.addr = 0;
   end
 
   logic is_halted;
 
   always_ff @(posedge clock) begin
+    ack <= 0;
     if (~reset) begin
       // リセット
       user_regs.a <= 0;
@@ -101,6 +107,10 @@ module cpu (
       priv_regs.c <= 0;
       addr.phys_addr <= 0;
       out <= 0;
+      ie <= 0;
+    end else if (!is_priv && irq) begin
+      addr.virt_addr <= irq_addr;
+      ack <= 1;
     end else if (has_exception) begin
       // 例外時の処理
       if (cur.addr.mode == 2'b10) is_halted <= 1;
@@ -117,6 +127,7 @@ module cpu (
       end
       out <= next.out;
       addr.virt_addr <= next.addr;
+      ie <= next.imsk;
     end
   end
 endmodule
