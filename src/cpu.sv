@@ -8,12 +8,18 @@ module cpu (
     input logic [3:0] in,
     output logic [3:0] out
 );
-  register_t regs;
+  register_t user_regs, priv_regs;
 
   logic [3:0] opcode;
   logic [3:0] imm;
 
   state_t cur, next;
+
+  logic is_priv;
+
+  always_comb begin
+    is_priv = addr.virt_addr.mode != 0;
+  end
 
   // オペコードとオペランドをロード
   always_comb begin
@@ -23,13 +29,17 @@ module cpu (
 
   // 現在の状態をバインド
   always_comb begin
-    cur.regs = regs;
+    cur.regs = is_priv ? priv_regs : user_regs;
     cur.addr = addr.virt_addr;
   end
 
+  logic do_swap;
+
   // オペコードから次のクロックの状態を演算
   always_comb begin
+    next.addr.mode = cur.addr.mode;
     next.addr.addr = cur.addr.addr + 1;
+    do_swap = 0;
     unique case (opcode)
       ADD_A_IMM: {next.regs.c, next.regs.a} = {1'b0, cur.regs.a} + {1'b0, imm};
       MOV_A_B: next.regs.a = cur.regs.b;
@@ -46,10 +56,10 @@ module cpu (
       // NOP1: ;
       OUT_IMM: next.out = imm;
 
-      // NOP2: ;
+      SWAP: if (is_priv) do_swap = 1;
       // NOP3: ;
-      JNC: if (!cur.regs.c) next.addr.addr = imm;
-      JMP: next.addr.addr = imm;
+      JNC:  if (!cur.regs.c) next.addr.addr = imm;
+      JMP:  next.addr.addr = imm;
 
       default: ;
     endcase
@@ -58,14 +68,21 @@ module cpu (
   always_ff @(posedge clock) begin
     if (~reset) begin
       // リセット
-      regs.a <= 0;
-      regs.b <= 0;
-      regs.c <= 0;
-      addr.virt_addr.addr <= 0;
+      user_regs.a <= 0;
+      user_regs.b <= 0;
+      user_regs.c <= 0;
+      priv_regs.a <= 0;
+      priv_regs.b <= 0;
+      priv_regs.c <= 0;
+      addr.phys_addr <= 0;
       out <= 0;
     end else begin
       // 次の状態をレジスタやCPUからの出力に書き出す
-      regs <= next.regs;
+      if (do_swap) begin
+        priv_regs.a <= user_regs.a;
+        user_regs.a <= priv_regs.a;
+      end else if (is_priv) priv_regs <= next.regs;
+      else user_regs <= next.regs;
       out <= next.out;
       addr.virt_addr <= next.addr;
     end
