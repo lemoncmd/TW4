@@ -12,6 +12,7 @@ module cpu (
 
   logic is_priv;
 
+  // 特権モードかどうか
   always_comb begin
     is_priv = addr.virt_addr.mode != 0;
   end
@@ -34,13 +35,19 @@ module cpu (
   end
 
   logic do_swap;
-  logic [3:0] saved_ip;
+  logic [4:0] saved_ip;
+  logic has_exception;
 
   // オペコードから次のクロックの状態を演算
   always_comb begin
     next.addr.mode = cur.addr.mode;
-    next.addr.addr = cur.addr.addr + 1;
+    {has_exception, next.addr.addr} = {1'b0, cur.addr.addr} + 1;
     do_swap = 0;
+    has_exception |= imm != 0
+      && opcode !=? 4'b??11
+      && opcode != ADD_A_IMM
+      && opcode != ADD_B_IMM
+      && opcode != JNC;
     unique case (opcode)
       ADD_A_IMM: {next.regs.c, next.regs.a} = {1'b0, cur.regs.a} + {1'b0, imm};
       MOV_A_B: next.regs.a = cur.regs.b;
@@ -61,17 +68,27 @@ module cpu (
       SWI_OR_IRET:
       if (is_priv) begin
         next.addr.mode = 2'b00;
-        next.addr.addr = saved_ip;
+        {has_exception, next.addr.addr} = saved_ip;
       end else begin
         next.addr.mode = 2'b01;
-        next.addr.addr = 0;
+        {has_exception, next.addr.addr} = 0;
       end
-      JNC:  if (!cur.regs.c) next.addr.addr = imm;
-      JMP:  next.addr.addr = imm;
+      JNC:  if (!cur.regs.c) {has_exception, next.addr.addr} = {1'b0, imm};
+      JMP:  {has_exception, next.addr.addr} = {1'b0, imm};
 
-      default: ;
+      default: has_exception = 1;
     endcase
   end
+
+  virt_addr_t exception_addr;
+
+  // 例外ハンドラのアドレス
+  always_comb begin
+    exception_addr.mode = 2'b10;
+    exception_addr.addr = 0;
+  end
+
+  logic is_halted;
 
   always_ff @(posedge clock) begin
     if (~reset) begin
@@ -84,7 +101,11 @@ module cpu (
       priv_regs.c <= 0;
       addr.phys_addr <= 0;
       out <= 0;
-    end else begin
+    end else if (has_exception) begin
+      // 例外時の処理
+      if (cur.addr.mode == 2'b10) is_halted <= 1;
+      else addr.virt_addr <= exception_addr;
+    end else if (!is_halted) begin
       // 次の状態をレジスタやCPUからの出力に書き出す
       if (do_swap) begin
         priv_regs.a <= user_regs.a;
@@ -92,7 +113,7 @@ module cpu (
       end else if (is_priv) priv_regs <= next.regs;
       else begin
         user_regs <= next.regs;
-        saved_ip  <= cur.addr.addr;
+        saved_ip  <= {1'b0, cur.addr.addr} + 1;
       end
       out <= next.out;
       addr.virt_addr <= next.addr;
