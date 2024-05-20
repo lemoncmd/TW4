@@ -10,22 +10,22 @@ module cpu (
 );
   register_t user_regs, priv_regs;
 
-  logic [3:0] opcode;
-  logic [3:0] imm;
-
-  state_t cur, next;
-
   logic is_priv;
 
   always_comb begin
     is_priv = addr.virt_addr.mode != 0;
   end
 
+  logic [3:0] opcode;
+  logic [3:0] imm;
+
   // オペコードとオペランドをロード
   always_comb begin
     opcode = data.instruction.opcode;
     imm = data.instruction.imm;
   end
+
+  state_t cur, next;
 
   // 現在の状態をバインド
   always_comb begin
@@ -34,6 +34,7 @@ module cpu (
   end
 
   logic do_swap;
+  logic [3:0] saved_ip;
 
   // オペコードから次のクロックの状態を演算
   always_comb begin
@@ -57,7 +58,14 @@ module cpu (
       OUT_IMM: next.out = imm;
 
       SWAP: if (is_priv) do_swap = 1;
-      // NOP3: ;
+      SWI_OR_IRET:
+      if (is_priv) begin
+        next.addr.mode = 2'b00;
+        next.addr.addr = saved_ip;
+      end else begin
+        next.addr.mode = 2'b01;
+        next.addr.addr = 0;
+      end
       JNC:  if (!cur.regs.c) next.addr.addr = imm;
       JMP:  next.addr.addr = imm;
 
@@ -82,11 +90,13 @@ module cpu (
         priv_regs.a <= user_regs.a;
         user_regs.a <= priv_regs.a;
       end else if (is_priv) priv_regs <= next.regs;
-      else user_regs <= next.regs;
+      else begin
+        user_regs <= next.regs;
+        saved_ip  <= cur.addr.addr;
+      end
       out <= next.out;
       addr.virt_addr <= next.addr;
     end
-
   end
 endmodule
 

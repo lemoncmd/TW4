@@ -28,7 +28,7 @@ typedef enum logic [3:0] {
   OUT_IMM,
 
   SWAP,
-  NOP3,
+  SWI_OR_IRET,
   JNC,
   JMP
 } opcode_t;
