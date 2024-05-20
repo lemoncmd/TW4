@@ -24,7 +24,7 @@ typedef enum logic [3:0] {
 
   NOP0,
   OUT_B,
-  NOP1,
+  IMSK,
   OUT_IMM,
 
   SWAP,
@@ -53,6 +53,7 @@ typedef struct {
   register_t  regs;
   logic [3:0] out;
   virt_addr_t addr;
+  logic [3:0] imsk;
 } state_t;
 
 `endif  // TYPES_SVH

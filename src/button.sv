@@ -4,7 +4,9 @@ module button (
     input  logic ack,
     input  logic ie,
     input  logic iei,
+    // verilator lint_off UNOPTFLAT
     output logic ieo,
+    // verilator lint_on UNOPTFLAT
     output logic irq
 );
 

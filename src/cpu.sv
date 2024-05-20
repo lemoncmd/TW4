@@ -48,9 +48,9 @@ module cpu (
     do_swap = 0;
     has_exception |= imm != 0
       && opcode !=? 4'b??11
+      && opcode !=? 4'b1?1?
       && opcode != ADD_A_IMM
-      && opcode != ADD_B_IMM
-      && opcode != JNC;
+      && opcode != ADD_B_IMM;
     unique case (opcode)
       ADD_A_IMM: {next.regs.c, next.regs.a} = {1'b0, cur.regs.a} + {1'b0, imm};
       MOV_A_B: next.regs.a = cur.regs.b;
@@ -63,8 +63,8 @@ module cpu (
       MOV_B_IMM: next.regs.b = imm;
 
       // NOP0: ;
-      OUT_B:   next.out = cur.regs.b;
-      // NOP1: ;
+      OUT_B: next.out = cur.regs.b;
+      IMSK: next.imsk = imm;
       OUT_IMM: next.out = imm;
 
       SWAP: if (is_priv) do_swap = 1;
@@ -127,6 +127,7 @@ module cpu (
       end
       out <= next.out;
       addr.virt_addr <= next.addr;
+      ie <= next.imsk;
     end
   end
 endmodule
