@@ -1,8 +1,10 @@
 #include <exception>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <string>
+#include <string_view>
 #include <vector>
 
 enum class TokenKind {
@@ -33,7 +35,18 @@ struct Token {
   std::string value;
 };
 
-std::vector<Token> tokenize(std::string s) { return {}; }
+std::vector<Token> tokenize(std::string_view s) {
+  std::vector<Token> tokens{};
+  for (int i; i < s.length();) {
+    if (std::string(" \n\r\t").find(s[i]) == std::string::npos) {
+      i++;
+      continue;
+    }
+    std::cerr << std::format("unexpected character: {}", s[i]);
+    std::terminate();
+  }
+  return tokens;
+}
 
 int main(int argc, const char *argv[]) {
   if (argc != 2) {
