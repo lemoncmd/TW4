@@ -136,19 +136,24 @@ std::vector<Token> tokenize(std::string_view s) {
     if (c == '0' || c == '1') {
       auto pos = s.find_first_not_of("01", i);
       if (pos == std::string::npos) {
-        if (cv.size() != 4) {
-          std::cerr << "imm must be 4 bit in binary format" << std::endl;
+        if (cv.size() > 4) {
+          std::cerr << "imm must be 4 or less bit in binary format"
+                    << std::endl;
           std::exit(1);
         }
-        tokens.push_back({TokenKind::imm, std::string(cv)});
+        tokens.push_back(
+            {TokenKind::imm, std::bitset<4>(std::string(cv)).to_string()});
         break;
       } else {
         auto len = pos - i;
-        if (len != 4) {
-          std::cerr << "imm must be 4 bit in binary format" << std::endl;
+        if (len > 4) {
+          std::cerr << "imm must be 4 or less bit in binary format"
+                    << std::endl;
           std::exit(1);
         }
-        tokens.push_back({TokenKind::imm, std::string(cv.substr(0, len))});
+        tokens.push_back(
+            {TokenKind::imm,
+             std::bitset<4>(std::string(cv.substr(0, len))).to_string()});
         i += len;
         continue;
       }
