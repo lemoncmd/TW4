@@ -7,7 +7,11 @@
 #include <iterator>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <variant>
 #include <vector>
+
+namespace tokenizer {
 
 enum class TokenKind {
   section,
@@ -159,6 +163,48 @@ std::vector<Token> tokenize(std::string_view s) {
   return tokens;
 }
 
+} // namespace tokenizer
+
+namespace parser {
+enum class Register { a, b };
+using Source = std::variant<Register, std::string>;
+
+struct Mov {
+  Register dst;
+  Source src;
+};
+struct Add {
+  Register dst;
+  std::string src;
+};
+struct In {
+  Register dst;
+};
+struct Out {
+  Source src;
+};
+struct Jnc {
+  std::string dst;
+};
+struct Jmp {
+  std::string dst;
+};
+struct Swap {};
+struct Swi {};
+struct Iret {};
+struct Imsk {
+  std::string mask;
+};
+using Instruction =
+    std::variant<Mov, Add, In, Out, Jnc, Jmp, Swap, Swi, Iret, Imsk>;
+
+struct Result {
+  std::vector<Instruction> instructions;
+  std::unordered_map<std::string, int> labels;
+};
+Result parse(std::vector<tokenizer::Token> &tokens) { return {}; }
+} // namespace parser
+
 int main(int argc, const char *argv[]) {
   if (argc != 2) {
     std::cerr << "usage: ./assembler foo.asm\n";
@@ -169,5 +215,7 @@ int main(int argc, const char *argv[]) {
   auto content = std::string(std::istreambuf_iterator<char>(file),
                              std::istreambuf_iterator<char>());
 
-  auto tokens = tokenize(content);
+  auto tokens = tokenizer::tokenize(content);
+
+  auto instructions = parser::parse(tokens);
 }
