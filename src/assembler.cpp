@@ -1,4 +1,5 @@
 #include <array>
+#include <bits/ranges_util.h>
 #include <cctype>
 #include <exception>
 #include <fstream>
@@ -38,8 +39,10 @@ struct Token {
 
 std::vector<Token> tokenize(std::string_view s) {
   std::vector<Token> tokens{};
-  for (int i; i < s.length();) {
+  for (int i = 0; i < s.length();) {
     char c = s[i];
+    auto cv = s.substr(i);
+
     if (std::string(" \n\r\t").find(c) != std::string::npos) {
       i++;
       continue;
@@ -52,12 +55,12 @@ std::vector<Token> tokenize(std::string_view s) {
     }
 
     if (c == ',') {
-      tokens.push_back({TokenKind::comma, ":"});
+      tokens.push_back({TokenKind::comma, ","});
       i++;
       continue;
     }
 
-    if (s.starts_with(".section")) {
+    if (cv.starts_with(".section")) {
       tokens.push_back({TokenKind::section, ".section"});
       i += 8;
       continue;
@@ -65,7 +68,7 @@ std::vector<Token> tokenize(std::string_view s) {
 
     auto cond = [&](std::string_view needle) {
       auto after = i + needle.length();
-      return s.substr(i).starts_with(needle) &&
+      return cv.starts_with(needle) &&
              (after == s.length() || !std::isalpha(s[after]));
     };
 
@@ -102,11 +105,34 @@ std::vector<Token> tokenize(std::string_view s) {
       continue;
     }
 
-    // TODO imm
+    if (c == '0' || c == '1') {
+      auto pos = s.find_first_not_of("01", i);
+      if (pos == std::string::npos) {
+        tokens.push_back({TokenKind::imm, std::string(cv)});
+        break;
+      } else {
+        auto len = pos - i;
+        tokens.push_back({TokenKind::imm, std::string(cv.substr(0, len))});
+        i += len;
+        continue;
+      }
+    }
 
-    // TODO label
+    if (std::isalpha(c)) {
+      auto pos = std::ranges::find_if_not(
+          cv, [](char c) { return std::isalnum(c) || c == '_'; });
+      if (pos == s.end()) {
+        tokens.push_back({TokenKind::imm, std::string(cv)});
+        break;
+      } else {
+        auto len = std::distance(cv.begin(), pos);
+        tokens.push_back({TokenKind::imm, std::string(cv.substr(0, len))});
+        i += len;
+        continue;
+      }
+    }
 
-    std::cerr << "unexpected character: " << c << "\n";
+    std::cerr << "unexpected character: " << c << std::endl;
     std::terminate();
   }
   return tokens;
