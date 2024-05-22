@@ -1,5 +1,6 @@
+#include <array>
+#include <cctype>
 #include <exception>
-#include <format>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -38,11 +39,74 @@ struct Token {
 std::vector<Token> tokenize(std::string_view s) {
   std::vector<Token> tokens{};
   for (int i; i < s.length();) {
-    if (std::string(" \n\r\t").find(s[i]) == std::string::npos) {
+    char c = s[i];
+    if (std::string(" \n\r\t").find(c) != std::string::npos) {
       i++;
       continue;
     }
-    std::cerr << std::format("unexpected character: {}", s[i]);
+
+    if (c == ':') {
+      tokens.push_back({TokenKind::colon, ":"});
+      i++;
+      continue;
+    }
+
+    if (c == ',') {
+      tokens.push_back({TokenKind::comma, ":"});
+      i++;
+      continue;
+    }
+
+    if (s.starts_with(".section")) {
+      tokens.push_back({TokenKind::section, ".section"});
+      i += 8;
+      continue;
+    }
+
+    auto cond = [&](std::string_view needle) {
+      auto after = i + needle.length();
+      return s.substr(i).starts_with(needle) &&
+             (after == s.length() || !std::isalpha(s[after]));
+    };
+
+    auto keywords = std::array<std::pair<std::string, TokenKind>, 15>{
+        std::pair("user", TokenKind::user),
+        std::pair("swi", TokenKind::swi),
+        std::pair("exception", TokenKind::exception),
+        std::pair("irq", TokenKind::irq),
+        std::pair("add", TokenKind::add),
+        std::pair("mov", TokenKind::mov),
+        std::pair("in", TokenKind::in),
+        std::pair("out", TokenKind::out),
+        std::pair("imsk", TokenKind::imsk),
+        std::pair("swap", TokenKind::swap),
+        std::pair("iret", TokenKind::iret),
+        std::pair("jnc", TokenKind::jnc),
+        std::pair("jmp", TokenKind::jmp),
+        std::pair("a", TokenKind::a),
+        std::pair("b", TokenKind::b),
+    };
+
+    bool found = false;
+
+    for (auto [keyword, kind] : keywords) {
+      if (cond(keyword)) {
+        tokens.push_back({kind, keyword});
+        i += keyword.length();
+        found = true;
+        break;
+      }
+    }
+
+    if (found) {
+      continue;
+    }
+
+    // TODO imm
+
+    // TODO label
+
+    std::cerr << "unexpected character: " << c << "\n";
     std::terminate();
   }
   return tokens;
