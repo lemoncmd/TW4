@@ -1,10 +1,13 @@
 #include <array>
 #include <bits/ranges_util.h>
+#include <bitset>
+#include <cassert>
 #include <cctype>
 #include <exception>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -133,10 +136,18 @@ std::vector<Token> tokenize(std::string_view s) {
     if (c == '0' || c == '1') {
       auto pos = s.find_first_not_of("01", i);
       if (pos == std::string::npos) {
+        if (cv.size() != 4) {
+          std::cerr << "imm must be 4 bit in binary format" << std::endl;
+          std::exit(1);
+        }
         tokens.push_back({TokenKind::imm, std::string(cv)});
         break;
       } else {
         auto len = pos - i;
+        if (len != 4) {
+          std::cerr << "imm must be 4 bit in binary format" << std::endl;
+          std::exit(1);
+        }
         tokens.push_back({TokenKind::imm, std::string(cv.substr(0, len))});
         i += len;
         continue;
@@ -299,6 +310,12 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
       auto dst = expect_read(read_register);
       expect(read_comma);
       auto src = expect_read(read_source);
+      if (auto src_reg = std::get_if<Register>(&src)) {
+        if (*src_reg == dst) {
+          std::cerr << "source and dest must be different for mov" << std::endl;
+          std::exit(1);
+        }
+      }
       result.instructions[int(section)].push_back(Mov{dst, src});
       break;
     }
@@ -321,7 +338,16 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
 
     case TokenKind::out: {
       i++;
-      auto src = expect_read(read_register);
+      auto src = expect_read([&]() {
+        switch (tokens[i].kind) {
+        case TokenKind::b:
+          return Source(Register::b);
+        case TokenKind::imm:
+          return Source(tokens[i].value);
+        default:
+          token_error("b or imm");
+        }
+      });
       result.instructions[int(section)].push_back(Out{src});
       break;
     }
@@ -406,6 +432,91 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
 }
 } // namespace parser
 
+namespace generator {
+[[noreturn]] void unreachable() { assert(false); }
+std::string generate(parser::Result result) {
+  std::ostringstream oss;
+  for (int i = 0; i < 4; i++) {
+    using namespace std::literals::string_literals;
+    struct Visitor {
+      std::unordered_map<std::string, int> labels;
+      auto operator()(parser::Mov mov) {
+        struct SourceVisitor {
+          parser::Register dst;
+          auto operator()(parser::Register) {
+            switch (dst) {
+            case parser::Register::a:
+              return "00010000"s;
+            case parser::Register::b:
+              return "01000000"s;
+            default:
+              unreachable();
+            }
+          }
+          auto operator()(std::string src) {
+            switch (dst) {
+            case parser::Register::a:
+              return "0011"s + src;
+            case parser::Register::b:
+              return "0111"s + src;
+            default:
+              unreachable();
+            }
+          }
+        };
+        return std::visit(SourceVisitor{mov.dst}, mov.src);
+      }
+      auto operator()(parser::Add add) {
+        switch (add.dst) {
+        case parser::Register::a:
+          return "0000"s + add.src;
+        case parser::Register::b:
+          return "0101"s + add.src;
+        default:
+          unreachable();
+        }
+      }
+      auto operator()(parser::In in) {
+        switch (in.dst) {
+        case parser::Register::a:
+          return "00100000"s;
+        case parser::Register::b:
+          return "01100000"s;
+        default:
+          unreachable();
+        }
+      }
+      auto operator()(parser::Out out) {
+        struct SourceVisitor {
+          auto operator()(parser::Register) { return "10010000"s; }
+          auto operator()(std::string src) { return "1011"s + src; }
+        };
+        return std::visit(SourceVisitor{}, out.src);
+      }
+      auto operator()(parser::Jnc jnc) {
+        return "1110"s + std::bitset<4>(labels[jnc.dst]).to_string();
+      }
+      auto operator()(parser::Jmp jmp) {
+        return "1111"s + std::bitset<4>(labels[jmp.dst]).to_string();
+      }
+      auto operator()(parser::Swap) { return "11000000"s; }
+      auto operator()(parser::Swi) { return "11010000"s; }
+      auto operator()(parser::Iret) { return "11010000"s; }
+      auto operator()(parser::Imsk imsk) { return "1010" + imsk.mask; }
+    };
+
+    while (result.instructions[i].size() != 16) {
+      result.instructions[i].push_back(
+          parser::Add{parser::Register::a, "0000"});
+    }
+    for (auto instruction : result.instructions[i]) {
+      oss << std::visit(Visitor{result.labels[i]}, instruction) << "\n";
+    }
+  }
+  return oss.str();
+}
+} // namespace generator
+
 int main(int argc, const char *argv[]) {
   if (argc != 2) {
     std::cerr << "usage: ./assembler foo.asm" << std::endl;
@@ -419,4 +530,8 @@ int main(int argc, const char *argv[]) {
   auto tokens = tokenizer::tokenize(content);
 
   auto parse_result = parser::parse(tokens);
+
+  auto binary = generator::generate(parse_result);
+
+  std::cout << binary;
 }
