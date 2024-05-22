@@ -66,7 +66,7 @@ std::vector<Token> tokenize(std::string_view s) {
       auto pos = cv.substr(2).find("*/");
       if (pos == std::string::npos) {
         std::cerr << "multi-line comment not closed" << std::endl;
-        std::terminate();
+        std::exit(1);
       } else {
         i = pos + 2;
         continue;
@@ -151,14 +151,14 @@ std::vector<Token> tokenize(std::string_view s) {
         break;
       } else {
         auto len = std::distance(cv.begin(), pos);
-        tokens.push_back({TokenKind::imm, std::string(cv.substr(0, len))});
+        tokens.push_back({TokenKind::label, std::string(cv.substr(0, len))});
         i += len;
         continue;
       }
     }
 
     std::cerr << "unexpected character: " << c << std::endl;
-    std::terminate();
+    std::exit(1);
   }
   return tokens;
 }
@@ -199,8 +199,8 @@ using Instruction =
     std::variant<Mov, Add, In, Out, Jnc, Jmp, Swap, Swi, Iret, Imsk>;
 
 struct Result {
-  std::vector<Instruction> instructions;
-  std::unordered_map<std::string, int> labels;
+  std::array<std::vector<Instruction>, 4> instructions;
+  std::array<std::unordered_map<std::string, int>, 4> labels;
 };
 Result parse(std::vector<tokenizer::Token> &tokens) {
   Result result{};
@@ -212,7 +212,7 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
     auto expect = [&](auto token_process) {
       if (i >= tokens.size()) {
         std::cerr << "reached end while reading instruction";
-        std::terminate();
+        std::exit(1);
       }
       token_process();
       i++;
@@ -220,7 +220,7 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
     auto expect_read = [&](auto token_process) {
       if (i >= tokens.size()) {
         std::cerr << "reached end while reading instruction";
-        std::terminate();
+        std::exit(1);
       }
       auto ret = token_process();
       i++;
@@ -229,7 +229,7 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
     auto token_error = [&](const char *expected) __attribute__((noreturn)) {
       std::cerr << "unexpected token `" << tokens[i].value << "`, expected "
                 << expected << std::endl;
-      std::terminate();
+      std::exit(1);
     };
     auto read_register = [&]() {
       switch (tokens[i].kind) {
@@ -299,7 +299,7 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
       auto dst = expect_read(read_register);
       expect(read_comma);
       auto src = expect_read(read_source);
-      result.instructions.push_back(Mov{dst, src});
+      result.instructions[int(section)].push_back(Mov{dst, src});
       break;
     }
 
@@ -308,72 +308,98 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
       auto dst = expect_read(read_register);
       expect(read_comma);
       auto src = expect_read(read_imm);
-      result.instructions.push_back(Add{dst, src});
+      result.instructions[int(section)].push_back(Add{dst, src});
       break;
     }
 
     case TokenKind::in: {
       i++;
       auto dst = expect_read(read_register);
-      result.instructions.push_back(In{dst});
+      result.instructions[int(section)].push_back(In{dst});
       break;
     }
 
     case TokenKind::out: {
       i++;
       auto src = expect_read(read_register);
-      result.instructions.push_back(Out{src});
+      result.instructions[int(section)].push_back(Out{src});
       break;
     }
 
     case TokenKind::jnc: {
       i++;
       auto dst = expect_read(read_label);
-      result.instructions.push_back(Jnc{dst});
+      result.instructions[int(section)].push_back(Jnc{dst});
       break;
     }
 
     case TokenKind::jmp: {
       i++;
       auto dst = expect_read(read_label);
-      result.instructions.push_back(Jmp{dst});
+      result.instructions[int(section)].push_back(Jmp{dst});
       break;
     }
 
     case TokenKind::swap: {
+      if (section == Section::user) {
+        std::cerr << "cannot use swap in user mode" << std::endl;
+        std::exit(1);
+      }
       i++;
-      result.instructions.push_back(Swap{});
+      result.instructions[int(section)].push_back(Swap{});
       break;
     }
 
     case TokenKind::swi: {
+      if (section != Section::user) {
+        std::cerr << "cannot use swi in privilege mode" << std::endl;
+        std::exit(1);
+      }
       i++;
-      result.instructions.push_back(Swi{});
+      result.instructions[int(section)].push_back(Swi{});
       break;
     }
 
     case TokenKind::iret: {
+      if (section == Section::user) {
+        std::cerr << "cannot use iret in user mode" << std::endl;
+        std::exit(1);
+      }
       i++;
-      result.instructions.push_back(Iret{});
+      result.instructions[int(section)].push_back(Iret{});
       break;
     }
 
     case TokenKind::imsk: {
       i++;
       auto mask = expect_read(read_imm);
-      result.instructions.push_back(Imsk{mask});
+      result.instructions[int(section)].push_back(Imsk{mask});
       break;
     }
 
     case TokenKind::label: {
       auto label = tokens[i].value;
       i++;
-      result.labels.emplace(label, 0);
+      expect([&]() {
+        if (tokens[i].kind != TokenKind::colon) {
+          token_error(":");
+        }
+      });
+      result.labels[int(section)].emplace(
+          label, result.instructions[int(section)].size());
       break;
     }
 
     default:
       token_error("instruction");
+    }
+  }
+  for (int i; i < 4; i++) {
+    const char *section_name[] = {"user", "swi", "exception", "irq"};
+    if (result.instructions[i].size() > 16) {
+      std::cerr << "too many instructions in section" << section_name[i]
+                << std::endl;
+      std::exit(1);
     }
   }
   return result;
@@ -383,7 +409,7 @@ Result parse(std::vector<tokenizer::Token> &tokens) {
 int main(int argc, const char *argv[]) {
   if (argc != 2) {
     std::cerr << "usage: ./assembler foo.asm" << std::endl;
-    std::terminate();
+    std::exit(1);
   }
 
   auto file = std::ifstream(argv[1]);
@@ -392,5 +418,5 @@ int main(int argc, const char *argv[]) {
 
   auto tokens = tokenizer::tokenize(content);
 
-  auto instructions = parser::parse(tokens);
+  auto parse_result = parser::parse(tokens);
 }
