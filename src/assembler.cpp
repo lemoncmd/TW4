@@ -202,12 +202,187 @@ struct Result {
   std::vector<Instruction> instructions;
   std::unordered_map<std::string, int> labels;
 };
-Result parse(std::vector<tokenizer::Token> &tokens) { return {}; }
+Result parse(std::vector<tokenizer::Token> &tokens) {
+  Result result{};
+  enum class Section { user, swi, exception, irq };
+  using tokenizer::TokenKind;
+  auto section = Section::user;
+
+  for (int i = 0; i < tokens.size();) {
+    auto expect = [&](auto token_process) {
+      if (i >= tokens.size()) {
+        std::cerr << "reached end while reading instruction";
+        std::terminate();
+      }
+      token_process();
+      i++;
+    };
+    auto expect_read = [&](auto token_process) {
+      if (i >= tokens.size()) {
+        std::cerr << "reached end while reading instruction";
+        std::terminate();
+      }
+      auto ret = token_process();
+      i++;
+      return ret;
+    };
+    auto token_error = [&](const char *expected) __attribute__((noreturn)) {
+      std::cerr << "unexpected token `" << tokens[i].value << "`, expected "
+                << expected << std::endl;
+      std::terminate();
+    };
+    auto read_register = [&]() {
+      switch (tokens[i].kind) {
+      case TokenKind::a:
+        return Register::a;
+      case TokenKind::b:
+        return Register::b;
+      default:
+        token_error("register");
+      }
+    };
+    auto read_imm = [&]() {
+      if (tokens[i].kind != TokenKind::imm) {
+        token_error("imm");
+      }
+      return tokens[i].value;
+    };
+    auto read_source = [&]() {
+      switch (tokens[i].kind) {
+      case TokenKind::a:
+        return Source(Register::a);
+      case TokenKind::b:
+        return Source(Register::b);
+      case TokenKind::imm:
+        return Source(tokens[i].value);
+      default:
+        token_error("register or imm");
+      }
+    };
+    auto read_label = [&]() {
+      if (tokens[i].kind != TokenKind::label) {
+        token_error("label");
+      }
+      return tokens[i].value;
+    };
+    auto read_comma = [&]() {
+      if (tokens[i].kind != TokenKind::comma) {
+        token_error(",");
+      }
+    };
+
+    switch (tokens[i].kind) {
+    case TokenKind::section:
+      i++;
+      expect([&]() {
+        switch (tokens[i].kind) {
+        case TokenKind::user:
+          section = Section::user;
+          break;
+        case TokenKind::swi:
+          section = Section::swi;
+          break;
+        case TokenKind::exception:
+          section = Section::exception;
+          break;
+        case TokenKind::irq:
+          section = Section::irq;
+          break;
+        default:
+          token_error("section name");
+        }
+      });
+      break;
+
+    case TokenKind::mov: {
+      i++;
+      auto dst = expect_read(read_register);
+      expect(read_comma);
+      auto src = expect_read(read_source);
+      result.instructions.push_back(Mov{dst, src});
+      break;
+    }
+
+    case TokenKind::add: {
+      i++;
+      auto dst = expect_read(read_register);
+      expect(read_comma);
+      auto src = expect_read(read_imm);
+      result.instructions.push_back(Add{dst, src});
+      break;
+    }
+
+    case TokenKind::in: {
+      i++;
+      auto dst = expect_read(read_register);
+      result.instructions.push_back(In{dst});
+      break;
+    }
+
+    case TokenKind::out: {
+      i++;
+      auto src = expect_read(read_register);
+      result.instructions.push_back(Out{src});
+      break;
+    }
+
+    case TokenKind::jnc: {
+      i++;
+      auto dst = expect_read(read_label);
+      result.instructions.push_back(Jnc{dst});
+      break;
+    }
+
+    case TokenKind::jmp: {
+      i++;
+      auto dst = expect_read(read_label);
+      result.instructions.push_back(Jmp{dst});
+      break;
+    }
+
+    case TokenKind::swap: {
+      i++;
+      result.instructions.push_back(Swap{});
+      break;
+    }
+
+    case TokenKind::swi: {
+      i++;
+      result.instructions.push_back(Swi{});
+      break;
+    }
+
+    case TokenKind::iret: {
+      i++;
+      result.instructions.push_back(Iret{});
+      break;
+    }
+
+    case TokenKind::imsk: {
+      i++;
+      auto mask = expect_read(read_imm);
+      result.instructions.push_back(Imsk{mask});
+      break;
+    }
+
+    case TokenKind::label: {
+      auto label = tokens[i].value;
+      i++;
+      result.labels.emplace(label, 0);
+      break;
+    }
+
+    default:
+      token_error("instruction");
+    }
+  }
+  return result;
+}
 } // namespace parser
 
 int main(int argc, const char *argv[]) {
   if (argc != 2) {
-    std::cerr << "usage: ./assembler foo.asm\n";
+    std::cerr << "usage: ./assembler foo.asm" << std::endl;
     std::terminate();
   }
 
