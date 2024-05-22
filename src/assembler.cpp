@@ -48,6 +48,27 @@ std::vector<Token> tokenize(std::string_view s) {
       continue;
     }
 
+    if (cv.starts_with("//")) {
+      auto pos = s.find_first_of("\n\r", i);
+      if (pos == std::string::npos) {
+        break;
+      } else {
+        i = pos;
+        continue;
+      }
+    }
+
+    if (cv.starts_with("/*")) {
+      auto pos = cv.substr(2).find("*/");
+      if (pos == std::string::npos) {
+        std::cerr << "multi-line comment not closed" << std::endl;
+        std::terminate();
+      } else {
+        i = pos + 2;
+        continue;
+      }
+    }
+
     if (c == ':') {
       tokens.push_back({TokenKind::colon, ":"});
       i++;
