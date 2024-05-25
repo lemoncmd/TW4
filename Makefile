@@ -1,14 +1,15 @@
 CC = g++
 CFLAGS = -std=c++20
+ASM ?= samples/test.asm
 
-all: obj_dir/Vtop assembler
+all: obj_dir/Vtop obj_dir/mem.bin
 
-obj_dir/Vtop: src/*.sv src/*.svh obj_dir/test.bin
+obj_dir/Vtop: src/*.sv src/*.svh
 	verilator --binary --trace --trace-params --trace-structs --trace-underscore -Isrc src/top.sv
 
-obj_dir/test.bin: assembler samples/test.asm
+obj_dir/mem.bin: assembler $(ASM)
 	mkdir -p obj_dir
-	./assembler samples/test.asm > obj_dir/test.bin
+	./assembler $(ASM) > obj_dir/mem.bin
 
 assembler: src/assembler.cpp
 	$(CC) $(CFLAGS) -o assembler src/assembler.cpp
@@ -20,4 +21,4 @@ clean:
 	rm -r obj_dir
 	rm assembler
 
-.PHONY: run clean
+.PHONY: run clean obj_dir/mem.bin
