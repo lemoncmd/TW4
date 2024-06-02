@@ -38,40 +38,36 @@ module top;
   );
 
   button button0 (
-      .clock(clock),
-      .in(in[0]),
+      .in (in[0]),
       .ack(ack),
-      .ie(ie[0]),
+      .ie (ie[0]),
       .iei(1),
       .ieo(ieo[0]),
       .irq(irq)
   );
 
   button button1 (
-      .clock(clock),
-      .in(in[1]),
+      .in (in[1]),
       .ack(ack),
-      .ie(ie[1]),
+      .ie (ie[1]),
       .iei(ieo[0]),
       .ieo(ieo[1]),
       .irq(irq)
   );
 
   button button2 (
-      .clock(clock),
-      .in(in[2]),
+      .in (in[2]),
       .ack(ack),
-      .ie(ie[2]),
+      .ie (ie[2]),
       .iei(ieo[1]),
       .ieo(ieo[2]),
       .irq(irq)
   );
 
   button button3 (
-      .clock(clock),
-      .in(in[3]),
+      .in (in[3]),
       .ack(ack),
-      .ie(ie[3]),
+      .ie (ie[3]),
       .iei(ieo[2]),
       .ieo(ieo[3]),
       .irq(irq)
@@ -84,6 +80,7 @@ module top;
   // リセットをかけてしばらくシミュレーション
   initial begin
     #20 reset = 1;
+    in[0] = 0;
     #1000 in[0] = 1;
     #250 in[0] = 0;
     #250 in[0] = 1;

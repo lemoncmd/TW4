@@ -1,5 +1,4 @@
 module button (
-    input  logic clock,
     input  logic in,
     input  logic ack,
     input  logic ie,
@@ -10,21 +9,17 @@ module button (
     output logic irq
 );
 
-  logic prev_in, prev_ack;
+  logic prev_in = 0;
+  logic has_irq = 0;
 
   always_comb begin
-    ieo = !((!prev_in && in && ie) || irq) && iei;
+    ieo = !has_irq && iei;
   end
 
-  logic has_irq;
-
-  always_ff @(posedge clock) begin
-    prev_in  <= in;
-    prev_ack <= ack;
-    if (!prev_in && in && ie) begin
-      has_irq <= 1;
-    end
-    if (!prev_ack && ack && iei) has_irq <= 0;
+  always_ff @(in, negedge ack) begin
+    prev_in <= in;
+    if (!prev_in && in && ie) has_irq <= 1;
+    else if (has_irq && !ack && iei) has_irq <= 0;
   end
 
   always_comb begin
