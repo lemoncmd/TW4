@@ -9,17 +9,18 @@ module button (
     output logic irq
 );
 
-  logic prev_in = 0;
+  logic prev_in = 0, prev_ack = 0;
   logic has_irq = 0;
 
   always_comb begin
     ieo = !has_irq && iei;
   end
 
-  always_ff @(in, negedge ack) begin
-    prev_in <= in;
+  always_ff @(in, ack) begin
+    prev_in  <= in;
+    prev_ack <= ack;
     if (!prev_in && in && ie) has_irq <= 1;
-    else if (has_irq && !ack && iei) has_irq <= 0;
+    else if (has_irq && prev_ack && !ack && iei) has_irq <= 0;
   end
 
   always_comb begin

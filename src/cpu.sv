@@ -38,7 +38,7 @@ module cpu (
   end
 
   logic do_swap;
-  logic [4:0] saved_ip;
+  logic [3:0] saved_ip;
   logic has_exception;
 
   // オペコードから次のクロックの状態を演算
@@ -69,9 +69,12 @@ module cpu (
 
       SWAP: if (is_priv) do_swap = 1;
       SWI_OR_IRET:
-      if (is_priv) begin
+      if (cur.addr.mode == 2'b01) begin
         next.addr.mode = 2'b00;
-        {has_exception, next.addr.addr} = saved_ip;
+        {has_exception, next.addr.addr} = {1'b0, saved_ip} + 1;
+      end else if (is_priv) begin
+        next.addr.mode = 2'b00;
+        next.addr.addr = saved_ip;
       end else begin
         next.addr.mode = 2'b01;
         {has_exception, next.addr.addr} = 0;
@@ -111,10 +114,12 @@ module cpu (
     end else if (!is_priv && irq) begin
       addr.virt_addr <= irq_addr;
       ack <= 1;
+      saved_ip <= cur.addr.addr;
     end else if (has_exception) begin
       // 例外時の処理
       if (cur.addr.mode == 2'b10) is_halted <= 1;
       else addr.virt_addr <= exception_addr;
+      saved_ip <= cur.addr.addr;
     end else if (!is_halted) begin
       // 次の状態をレジスタやCPUからの出力に書き出す
       if (do_swap) begin
@@ -123,7 +128,7 @@ module cpu (
       end else if (is_priv) priv_regs <= next.regs;
       else begin
         user_regs <= next.regs;
-        saved_ip  <= {1'b0, cur.addr.addr} + 1;
+        saved_ip  <= cur.addr.addr;
       end
       out <= next.out;
       addr.virt_addr <= next.addr;
